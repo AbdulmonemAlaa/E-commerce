@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Brand;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Intervention\Image\Laravel\Facades\Image;
 
@@ -80,6 +81,39 @@ class AdminController extends Controller
 
         // Step 5: Save the resized image to the destination path with the provided file name
         $img->save($destinationPath . '/' . $imageName);
+    }
+
+    public function edit_brand($id){
+        $brand = Brand::findOrFail($id);
+        return view('admin.edit_brand',['brand'=>$brand]);
+    }
+    public function update_brand(Request $request, $id){
+        $request->validate([
+            'name' => 'required',
+            'slug' => 'required|unique:brands,slug,' . $id,
+            'image' => 'nullable',
+        ]);
+
+        $brand = Brand::findOrFail($id);
+        $brand->name = $request->name;
+        $brand->slug = $request->slug;
+
+        if($request->hasFile('image')){
+            if(File::exists(public_path('uploads/brands/' . $brand->image))){
+                File::delete(public_path('uploads/brands/' . $brand->image));
+            }
+            $image = $request->file('image');
+            $file_extension = $image->extension();
+            $file_name = Carbon::now()->timestamp . '.' . $file_extension;
+
+            $this->GenerateBrandThumbailsImage($image, $file_name);
+
+            $brand->image = $file_name;
+        }
+
+        $brand->save();
+
+        return redirect()->route('admin.brands')->with('status', 'Brand has been edited successfully!');
     }
 
 }
